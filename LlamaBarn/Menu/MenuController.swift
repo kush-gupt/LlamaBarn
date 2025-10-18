@@ -165,30 +165,27 @@ final class MenuController: NSObject, NSMenuDelegate {
       .first { $0.family == family }
   }
 
+  /// Helper to observe a notification and call refresh on the main actor
+  private func observeAndRefresh(_ name: Notification.Name) {
+    observer.observe(name) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refresh()
+      }
+    }
+  }
+
   // Observe server and download changes while the menu is open.
   private func addObservers() {
     observer.removeAll()
 
     // Server started/stopped - update icon and views
-    observer.observe(.LBServerStateDidChange) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.refresh()
-      }
-    }
+    observeAndRefresh(.LBServerStateDidChange)
 
     // Server memory usage changed - update running model stats
-    observer.observe(.LBServerMemoryDidChange) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.refresh()
-      }
-    }
+    observeAndRefresh(.LBServerMemoryDidChange)
 
     // Download progress updated - refresh progress indicators
-    observer.observe(.LBModelDownloadsDidChange) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.refresh()
-      }
-    }
+    observeAndRefresh(.LBModelDownloadsDidChange)
 
     // Model downloaded or deleted - rebuild both installed and catalog sections
     observer.observe(.LBModelDownloadedListDidChange) { [weak self] _ in

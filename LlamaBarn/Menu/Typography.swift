@@ -38,6 +38,12 @@ enum Typography {
   }
 
   // MARK: - Attributed String Helpers
+  /// Common attributes for primary text
+  static let primaryAttributes: [NSAttributedString.Key: Any] = [
+    .font: primary,
+    .foregroundColor: primaryColor,
+  ]
+
   /// Common attributes for secondary text (metadata)
   static let secondaryAttributes: [NSAttributedString.Key: Any] = [
     .font: secondary,
@@ -49,4 +55,14 @@ enum Typography {
     .font: secondary,
     .foregroundColor: tertiaryColor,
   ]
+
+  /// Creates attributes for primary font with custom color
+  static func makePrimaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
+    [.font: primary, .foregroundColor: color]
+  }
+
+  /// Creates attributes for secondary font with custom color
+  static func makeSecondaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
+    [.font: secondary, .foregroundColor: color]
+  }
 }

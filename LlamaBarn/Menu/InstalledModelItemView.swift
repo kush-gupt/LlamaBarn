@@ -210,21 +210,17 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Use secondary color for downloading models
     let familyColor: NSColor = isDownloading ? Typography.secondaryColor : Typography.primaryColor
-    let sizeColor: NSColor = Typography.secondaryColor
 
     // Family name in primary style
-    let familyAttributes: [NSAttributedString.Key: Any] = [
-      .font: Typography.primary,
-      .foregroundColor: familyColor,
-    ]
-    result.append(NSAttributedString(string: model.family, attributes: familyAttributes))
+    result.append(
+      NSAttributedString(
+        string: model.family, attributes: Typography.makePrimaryAttributes(color: familyColor)))
 
     // Size in primary font with secondary color
-    let sizeAttributes: [NSAttributedString.Key: Any] = [
-      .font: Typography.primary,
-      .foregroundColor: sizeColor,
-    ]
-    result.append(NSAttributedString(string: " \(model.sizeLabel)", attributes: sizeAttributes))
+    result.append(
+      NSAttributedString(
+        string: " \(model.sizeLabel)",
+        attributes: Typography.makePrimaryAttributes(color: Typography.secondaryColor)))
 
     return result
   }

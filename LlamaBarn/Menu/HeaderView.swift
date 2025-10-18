@@ -66,10 +66,7 @@ final class HeaderView: NSView {
 
       let attributed = NSMutableAttributedString(
         string: full,
-        attributes: [
-          .font: Typography.secondary,
-          .foregroundColor: Typography.primaryColor,
-        ]
+        attributes: Typography.makeSecondaryAttributes(color: Typography.primaryColor)
       )
       // Color the model name with llamaGreen
       if let modelRange = full.range(of: modelName) {
@@ -91,10 +88,7 @@ final class HeaderView: NSView {
     } else {
       serverStatusLabel.attributedStringValue = NSAttributedString(
         string: "Select a model to run",
-        attributes: [
-          .font: Typography.secondary,
-          .foregroundColor: Typography.secondaryColor,
-        ]
+        attributes: Typography.secondaryAttributes
       )
       serverStatusLabel.toolTip = nil
     }

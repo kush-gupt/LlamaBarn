@@ -127,12 +127,9 @@ final class CatalogModelItemView: ItemView {
 
     // Use secondary color for catalog models, tertiary for incompatible models
     let textColor = compatible ? Typography.secondaryColor : Typography.tertiaryColor
+    let attributes = Typography.makePrimaryAttributes(color: textColor)
 
-    // Family name and size both use secondary color in catalog
-    let attributes: [NSAttributedString.Key: Any] = [
-      .font: Typography.primary,
-      .foregroundColor: textColor,
-    ]
+    // Family name and size both use same color in catalog
     result.append(NSAttributedString(string: model.family, attributes: attributes))
     result.append(NSAttributedString(string: " \(model.sizeLabel)", attributes: attributes))
 

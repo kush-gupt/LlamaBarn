@@ -213,25 +213,11 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
         return
       }
 
-      let shouldNotifyFinished: Bool
-      if self.activeDownloads[modelId] != nil {
-        var aggregate = self.activeDownloads[modelId]!
+      let wasCompleted = updateActiveDownload(modelId: modelId) { aggregate in
         aggregate.markTaskFinished(downloadTask, fileSize: fileSize)
-        if aggregate.isEmpty {
-          self.activeDownloads.removeValue(forKey: modelId)
-          self.lastNotificationTime.removeValue(forKey: modelId)
-          shouldNotifyFinished = true
-        } else {
-          self.activeDownloads[modelId] = aggregate
-          shouldNotifyFinished = false
-        }
-      } else {
-        // This case should not be hit if the download is tracked properly,
-        // but if it is, ensure we notify for a refresh.
-        shouldNotifyFinished = true
       }
 
-      if shouldNotifyFinished {
+      if wasCompleted {
         self.logger.info("All downloads completed for model: \(model.displayName)")
         NotificationCenter.default.post(
           name: .LBModelDownloadFinished,
@@ -242,14 +228,8 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
       self.postDownloadsDidChange()
     } catch {
       logger.error("Error moving downloaded file: \(error.localizedDescription)")
-      if var aggregate = self.activeDownloads[modelId] {
+      _ = updateActiveDownload(modelId: modelId) { aggregate in
         aggregate.removeTask(with: downloadTask.taskIdentifier)
-        if aggregate.isEmpty {
-          self.activeDownloads.removeValue(forKey: modelId)
-          self.lastNotificationTime.removeValue(forKey: modelId)
-        } else {
-          self.activeDownloads[modelId] = aggregate
-        }
       }
       postDownloadsDidChange()
     }
@@ -273,11 +253,7 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
 
     logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
 
-    if var aggregate = self.activeDownloads[modelId] {
-      aggregate.cancelAllTasks()
-      self.activeDownloads.removeValue(forKey: modelId)
-      self.lastNotificationTime.removeValue(forKey: modelId)
-    }
+    cancelActiveDownload(modelId: modelId)
     postDownloadsDidChange()
   }
 
@@ -309,28 +285,44 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
 
     if let error = error {
       logger.error("Model download failed: \(error.localizedDescription)")
-      let shouldNotify: Bool
-      if var aggregate = self.activeDownloads[modelId] {
-        aggregate.removeTask(with: task.taskIdentifier)
-        if aggregate.isEmpty {
-          self.activeDownloads.removeValue(forKey: modelId)
-          self.lastNotificationTime.removeValue(forKey: modelId)
-          shouldNotify = true
-        } else {
-          self.activeDownloads[modelId] = aggregate
-          shouldNotify = true
+      if activeDownloads[modelId] != nil {
+        _ = updateActiveDownload(modelId: modelId) { aggregate in
+          aggregate.removeTask(with: task.taskIdentifier)
         }
-      } else {
-        shouldNotify = false
-      }
-
-      if shouldNotify {
         postDownloadsDidChange()
       }
     }
   }
 
   // MARK: - Helpers
+
+  /// Updates an active download by applying a modification and removing it if empty.
+  /// Returns true if the download was removed (completed or cancelled), false if still in progress.
+  private func updateActiveDownload(
+    modelId: String,
+    modify: (inout ActiveDownload) -> Void
+  ) -> Bool {
+    guard var aggregate = activeDownloads[modelId] else { return false }
+
+    modify(&aggregate)
+
+    if aggregate.isEmpty {
+      activeDownloads.removeValue(forKey: modelId)
+      lastNotificationTime.removeValue(forKey: modelId)
+      return true
+    } else {
+      activeDownloads[modelId] = aggregate
+      return false
+    }
+  }
+
+  /// Cancels all tasks for a model and removes it from active downloads.
+  private func cancelActiveDownload(modelId: String) {
+    guard var aggregate = activeDownloads[modelId] else { return }
+    aggregate.cancelAllTasks()
+    activeDownloads.removeValue(forKey: modelId)
+    lastNotificationTime.removeValue(forKey: modelId)
+  }
 
   private func prepareDownload(for model: CatalogEntry) throws -> [URL] {
     let filesToDownload = filesRequired(for: model)

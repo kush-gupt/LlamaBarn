@@ -190,6 +190,30 @@ enum Catalog {
     return SystemMemory.memoryMb
   }
 
+  // MARK: - Memory Calculation Helpers
+
+  /// Converts bytes to megabytes using binary units (1 MB = 2^20 bytes)
+  private static func bytesToMb(_ bytes: Int64) -> Double {
+    Double(bytes) / 1_048_576.0
+  }
+
+  /// Converts bytes to megabytes using binary units (for Double values)
+  private static func bytesToMb(_ bytes: Double) -> Double {
+    bytes / 1_048_576.0
+  }
+
+  /// Calculates file size in MB including overhead multiplier
+  private static func fileSizeWithOverheadMb(for model: CatalogEntry) -> Double {
+    let fileSizeMb = bytesToMb(model.fileSize)
+    return fileSizeMb * model.overheadMultiplier
+  }
+
+  /// Calculates available memory budget in MB based on system memory
+  private static func memoryBudgetMb(systemMemoryMb: UInt64) -> Double {
+    let memoryFraction = availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
+    return Double(systemMemoryMb) * memoryFraction
+  }
+
   /// Computes the usable context window (in tokens) that fits within the allowed memory budget.
   /// - Parameters:
   ///   - model: Catalog entry under evaluation.
@@ -211,11 +235,9 @@ enum Catalog {
     let systemMemoryMb = systemMemoryMb
     guard systemMemoryMb > 0 else { return nil }
 
-    let memoryFraction = availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
-    let availableMemoryMb = Double(systemMemoryMb) * memoryFraction
-    let fileSizeMb = Double(model.fileSize) / 1_048_576.0
-    let fileSizeWithOverheadMb = fileSizeMb * model.overheadMultiplier
-    if fileSizeWithOverheadMb > availableMemoryMb { return nil }
+    let budgetMb = memoryBudgetMb(systemMemoryMb: systemMemoryMb)
+    let fileSizeWithOverheadMb = fileSizeWithOverheadMb(for: model)
+    if fileSizeWithOverheadMb > budgetMb { return nil }
 
     let effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? model.ctxWindow
     let desiredTokensDouble = Double(effectiveDesired)
@@ -225,7 +247,7 @@ enum Catalog {
       if ctxBytesPerToken <= 0 {
         return Double(model.ctxWindow)
       }
-      let remainingMb = availableMemoryMb - fileSizeWithOverheadMb
+      let remainingMb = budgetMb - fileSizeWithOverheadMb
       if remainingMb <= 0 { return 0 }
       let remainingBytes = remainingMb * 1_048_576.0
       return remainingBytes / ctxBytesPerToken
@@ -272,11 +294,11 @@ enum Catalog {
     }
 
     let systemMemoryMb = systemMemoryMb
-    let memoryFraction = availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
     let estimatedMemoryUsageMb = runtimeMemoryUsageMb(
       for: model, ctxWindowTokens: ctxWindowTokens)
 
     func memoryRequirementSummary() -> String {
+      let memoryFraction = availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
       let requiredTotalMb = UInt64(ceil(Double(estimatedMemoryUsageMb) / memoryFraction))
       let gb = ceil(Double(requiredTotalMb) / 1024.0)
       return String(format: "requires %.0f GB+ of memory", gb)
@@ -288,8 +310,8 @@ enum Catalog {
       )
     }
 
-    let availableMemoryMb = Double(systemMemoryMb) * memoryFraction
-    let isCompatible = estimatedMemoryUsageMb <= UInt64(availableMemoryMb)
+    let budgetMb = memoryBudgetMb(systemMemoryMb: systemMemoryMb)
+    let isCompatible = estimatedMemoryUsageMb <= UInt64(budgetMb)
 
     return cache(
       CompatibilityInfo(
@@ -321,11 +343,10 @@ enum Catalog {
     ctxWindowTokens: Double = compatibilityCtxWindowTokens
   ) -> UInt64 {
     // Memory calculations use binary units so they line up with Activity Monitor.
-    let fileSizeMb = Double(model.fileSize) / 1_048_576.0
-    let fileSizeWithOverheadMb = fileSizeMb * model.overheadMultiplier
+    let fileSizeWithOverheadMb = fileSizeWithOverheadMb(for: model)
     let ctxMultiplier = ctxWindowTokens / 1_000.0
     let ctxBytes = Double(model.ctxBytesPer1kTokens) * ctxMultiplier
-    let ctxMb = ctxBytes / 1_048_576.0
+    let ctxMb = bytesToMb(ctxBytes)
     let totalMb = fileSizeWithOverheadMb + ctxMb
     return UInt64(ceil(totalMb))
   }

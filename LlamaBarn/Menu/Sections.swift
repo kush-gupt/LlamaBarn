@@ -11,6 +11,16 @@ private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
   return NSMenuItem.viewItem(with: view)
 }
 
+/// Removes all items after the given index until hitting a separator or end of menu
+private func removeItemsAfter(index: Int, in menu: NSMenu) {
+  let indexToRemove = index + 1
+  while indexToRemove < menu.items.count {
+    let item = menu.items[indexToRemove]
+    if item.isSeparatorItem { break }
+    menu.removeItem(at: indexToRemove)
+  }
+}
+
 @MainActor
 final class MenuHeaderSection {
   private let server: LlamaServer
@@ -82,13 +92,7 @@ final class InstalledSection {
     // Case 1: Section exists
     if let headerItem, let headerIndex = menu.items.firstIndex(of: headerItem) {
       // Remove all installed items
-      let indexToRemove = headerIndex + 1
-      while indexToRemove < menu.items.count {
-        let item = menu.items[indexToRemove]
-        // Stop when we hit a separator (which marks the end of our section)
-        if item.isSeparatorItem { break }
-        menu.removeItem(at: indexToRemove)
-      }
+      removeItemsAfter(index: headerIndex, in: menu)
 
       if models.isEmpty {
         // No models left - remove the header
@@ -206,13 +210,7 @@ final class CatalogSection {
     // Case 1: Section exists
     if let separatorItem, let separatorIndex = menu.items.firstIndex(of: separatorItem) {
       // Remove all catalog items (everything after the separator until the next separator or end)
-      let indexToRemove = separatorIndex + 1
-      while indexToRemove < menu.items.count {
-        let item = menu.items[indexToRemove]
-        // Stop when we hit a separator (which marks the end of our section)
-        if item.isSeparatorItem { break }
-        menu.removeItem(at: indexToRemove)
-      }
+      removeItemsAfter(index: separatorIndex, in: menu)
 
       if availableModels.isEmpty {
         // No models left - remove the separator
