@@ -1,4 +1,4 @@
-import LaunchAtLogin
+import ServiceManagement
 import SwiftUI
 
 struct SettingsView: View {
@@ -10,13 +10,20 @@ struct SettingsView: View {
       HStack {
         Text("Launch at Login")
         Spacer()
-        Toggle("", isOn: $launchAtLogin)
-          .labelsHidden()
-          .toggleStyle(SwitchToggleStyle())
-          .controlSize(.mini)
-          .onChange(of: launchAtLogin) { _, newValue in
-            LaunchAtLogin.isEnabled = newValue
-          }
+        Toggle(
+          "",
+          isOn: Binding(
+            get: { launchAtLogin },
+            set: { newValue in
+              if LaunchAtLogin.setEnabled(newValue) {
+                launchAtLogin = newValue
+              }
+            }
+          )
+        )
+        .labelsHidden()
+        .toggleStyle(SwitchToggleStyle())
+        .controlSize(.mini)
       }
       HStack {
         Text("Show quantized models")
