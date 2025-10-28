@@ -64,24 +64,28 @@ final class HeaderView: NSView {
       let full = "\(modelName) is running on \(linkText)"
       let url = URL(string: "http://\(linkText)/")!
 
-      let attributed = NSMutableAttributedString(
-        string: full,
-        attributes: Typography.makeSecondaryAttributes(color: Typography.primaryColor)
-      )
-      // Color the model name with llamaGreen
+      let paragraphStyle = NSMutableParagraphStyle()
+      paragraphStyle.lineBreakMode = .byTruncatingTail
+
+      var baseAttributes = Typography.makeSecondaryAttributes(color: Typography.primaryColor)
+      baseAttributes[.paragraphStyle] = paragraphStyle
+
+      let attributed = NSMutableAttributedString(string: full, attributes: baseAttributes)
+
       if let modelRange = full.range(of: modelName) {
-        let nsRange = NSRange(modelRange, in: full)
-        attributed.addAttribute(.foregroundColor, value: NSColor.llamaGreen, range: nsRange)
+        attributed.addAttribute(
+          .foregroundColor, value: NSColor.llamaGreen, range: NSRange(modelRange, in: full))
       }
-      // Use .link attribute so NSTextField handles clicks automatically.
-      if let range = full.range(of: linkText) {
-        let nsRange = NSRange(range, in: full)
+
+      if let linkRange = full.range(of: linkText) {
         attributed.addAttributes(
           [
             .link: url,
             .foregroundColor: NSColor.linkColor,
             .underlineStyle: NSUnderlineStyle.single.rawValue,
-          ], range: nsRange)
+          ],
+          range: NSRange(linkRange, in: full)
+        )
       }
       serverStatusLabel.attributedStringValue = attributed
       serverStatusLabel.toolTip = "Open llama-server"
