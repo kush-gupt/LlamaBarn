@@ -426,15 +426,15 @@ enum Catalog {
         ),
       ]
     ),
-    // MARK: Qwen3 Coder
+    // MARK: Qwen3-Coder
     ModelFamily(
-      name: "Qwen3 Coder",
+      name: "Qwen3-Coder",
       series: "qwen",
       serverArgs: nil,
       overheadMultiplier: 1.1,
       sizes: [
         ModelSize(
-          name: "30B",
+          name: "30B-A3B",
           parameterCount: 30_532_122_624,
           releaseDate: date(2025, 7, 31),
           ctxWindow: 262_144,
@@ -471,7 +471,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       sizes: [
         ModelSize(
-          name: "30B",
+          name: "30B-A3B",
           parameterCount: 30_532_122_624,
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -536,7 +536,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       sizes: [
         ModelSize(
-          name: "30B",
+          name: "30B-A3B",
           parameterCount: 30_532_122_624,
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -633,7 +633,7 @@ enum Catalog {
           ]
         ),
         ModelSize(
-          name: "30B",
+          name: "30B-A3B",
           parameterCount: 31_070_754_032,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -802,7 +802,7 @@ enum Catalog {
           ]
         ),
         ModelSize(
-          name: "30B",
+          name: "30B-A3B",
           parameterCount: 31_070_754_032,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
