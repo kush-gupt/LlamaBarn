@@ -54,7 +54,7 @@ enum Catalog {
   // MARK: - New hierarchical catalog
 
   struct ModelBuild {
-    let id: String?  // explicit ID for the leaf (preferred)
+    let id: String  // unique identifier
     let quantization: String
     let isFullPrecision: Bool
     let fileSize: Int64
@@ -65,7 +65,7 @@ enum Catalog {
     let serverArgs: [String]?
 
     init(
-      id: String?,
+      id: String,
       quantization: String,
       isFullPrecision: Bool,
       fileSize: Int64,
@@ -82,40 +82,6 @@ enum Catalog {
       self.downloadUrl = downloadUrl
       self.additionalParts = additionalParts
       self.serverArgs = serverArgs
-    }
-
-    func asEntry(family: ModelFamily, model: Model) -> CatalogEntry {
-      let effectiveArgs = (family.serverArgs ?? []) + (model.serverArgs ?? []) + (serverArgs ?? [])
-
-      // Merge model's mmproj (if present) with build's additionalParts (for multi-part splits)
-      let effectiveParts: [URL]? = {
-        var parts: [URL] = []
-        if let mmproj = model.mmproj {
-          parts.append(mmproj)
-        }
-        if let buildParts = additionalParts {
-          parts.append(contentsOf: buildParts)
-        }
-        return parts.isEmpty ? nil : parts
-      }()
-
-      return CatalogEntry(
-        id: id
-          ?? Catalog.makeId(family: family.name, modelLabel: model.label, build: self),
-        family: family.name,
-        size: model.label,
-        releaseDate: model.releaseDate,
-        ctxWindow: model.ctxWindow,
-        fileSize: fileSize,
-        ctxBytesPer1kTokens: ctxBytesPer1kTokens,
-        overheadMultiplier: family.overheadMultiplier,
-        downloadUrl: downloadUrl,
-        additionalParts: effectiveParts,
-        serverArgs: effectiveArgs,
-        icon: family.iconName,
-        quantization: quantization,
-        isFullPrecision: isFullPrecision
-      )
     }
   }
 
@@ -144,6 +110,11 @@ enum Catalog {
       self.mmproj = mmproj
       self.build = build
       self.quantizedBuilds = quantizedBuilds
+    }
+
+    /// All builds for this model (full precision + quantized variants)
+    var allBuilds: [ModelBuild] {
+      [build] + quantizedBuilds
     }
   }
 
@@ -176,58 +147,64 @@ enum Catalog {
   /// Pre-sorted by name to eliminate runtime sorting overhead.
   static let families: [ModelFamily] = familiesUnsorted.sorted(by: { $0.name < $1.name })
 
-  // MARK: - ID + flatten helpers
-
-  private static func slug(_ s: String) -> String {
-    s.lowercased()
-      .replacingOccurrences(of: " ", with: "-")
-      .replacingOccurrences(of: "/", with: "-")
-  }
-
-  /// Preserves existing ID scheme when an explicit build.id is not provided:
-  /// - Q8_0 builds use suffix "-q8"
-  /// - mxfp4 builds use suffix "-mxfp4"
-  /// - other builds omit suffix
-  private static func makeId(family: String, modelLabel: String, build: ModelBuild) -> String {
-    let familySlug = slug(family)
-    let modelSlug = slug(modelLabel)
-    let base = "\(familySlug)-\(modelSlug)"
-    let quant = build.quantization.uppercased()
-    switch quant {
-    case "Q8_0": return base + "-q8"
-    case "MXFP4": return base + "-mxfp4"
-    default: return base
-    }
-  }
-
   // MARK: - Accessors
 
-  /// Cached catalog entries computed once at initialization.
-  /// The catalog is defined statically and never changes at runtime, so we build this list once
-  /// instead of rebuilding it on every menu open, download completion, or status check.
-  /// Eliminates ~30+ struct allocations and nested iterations per refresh.
-  private static let cachedEntries: [CatalogEntry] = {
+  /// Returns all catalog entries by traversing the hierarchy
+  static func allModels() -> [CatalogEntry] {
     families.flatMap { family in
-      family.models.flatMap { model -> [CatalogEntry] in
-        let allBuilds = [model.build] + model.quantizedBuilds
-        return allBuilds.map { build in build.asEntry(family: family, model: model) }
+      family.models.flatMap { model in
+        model.allBuilds.map { build in entry(family: family, model: model, build: build) }
       }
     }
-  }()
-
-  /// Dictionary mapping model IDs to entries for O(1) lookups.
-  /// Replaces linear search through families/models/builds when looking up by ID,
-  /// which happens frequently during downloads and status checks.
-  private static let entriesById: [String: CatalogEntry] = {
-    Dictionary(uniqueKeysWithValues: cachedEntries.map { ($0.id, $0) })
-  }()
-
-  static func allEntries() -> [CatalogEntry] {
-    cachedEntries
   }
 
-  static func entry(forId id: String) -> CatalogEntry? {
-    entriesById[id]
+  /// Finds a catalog entry by ID by traversing the hierarchy
+  static func findModel(id: String) -> CatalogEntry? {
+    for family in families {
+      for model in family.models {
+        for build in model.allBuilds {
+          if build.id == id {
+            return entry(family: family, model: model, build: build)
+          }
+        }
+      }
+    }
+    return nil
+  }
+
+  /// Builds a CatalogEntry from hierarchy components
+  private static func entry(family: ModelFamily, model: Model, build: ModelBuild) -> CatalogEntry {
+    let effectiveArgs =
+      (family.serverArgs ?? []) + (model.serverArgs ?? []) + (build.serverArgs ?? [])
+
+    // Merge model's mmproj (if present) with build's additionalParts (for multi-part splits)
+    let effectiveParts: [URL]? = {
+      var parts: [URL] = []
+      if let mmproj = model.mmproj {
+        parts.append(mmproj)
+      }
+      if let buildParts = build.additionalParts {
+        parts.append(contentsOf: buildParts)
+      }
+      return parts.isEmpty ? nil : parts
+    }()
+
+    return CatalogEntry(
+      id: build.id,
+      family: family.name,
+      size: model.label,
+      releaseDate: model.releaseDate,
+      ctxWindow: model.ctxWindow,
+      fileSize: build.fileSize,
+      ctxBytesPer1kTokens: build.ctxBytesPer1kTokens,
+      overheadMultiplier: family.overheadMultiplier,
+      downloadUrl: build.downloadUrl,
+      additionalParts: effectiveParts,
+      serverArgs: effectiveArgs,
+      icon: family.iconName,
+      quantization: build.quantization,
+      isFullPrecision: build.isFullPrecision
+    )
   }
 
   /// Gets system memory in Mb using shared system memory utility

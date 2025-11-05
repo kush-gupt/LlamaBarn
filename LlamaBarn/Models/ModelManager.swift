@@ -96,7 +96,7 @@ class ModelManager: NSObject {
     }
     let fileSet = Set(files)
 
-    self.downloadedModels = Catalog.allEntries().filter { model in
+    self.downloadedModels = Catalog.allModels().filter { model in
       guard fileSet.contains(model.downloadUrl.lastPathComponent) else {
         return false
       }

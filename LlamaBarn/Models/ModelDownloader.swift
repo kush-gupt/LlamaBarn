@@ -158,7 +158,7 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     didFinishDownloadingTo location: URL
   ) {
     guard let modelId = downloadTask.taskDescription,
-      let model = Catalog.entry(forId: modelId)
+      let model = Catalog.findModel(id: modelId)
     else {
       return
     }
