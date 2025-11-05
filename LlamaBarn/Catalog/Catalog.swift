@@ -1,9 +1,5 @@
 import Foundation
 
-/// Hugging Face api
-/// - https://huggingface.co/api/models/{organization}/{model-name} -- model details
-/// - https://huggingface.co/api/models?author={organization}&search={query} -- search based on author and query
-
 /// Static catalog of available AI models with their configurations and metadata
 enum Catalog {
 
@@ -12,7 +8,7 @@ enum Catalog {
     Calendar.current.date(from: DateComponents(year: year, month: month, day: day))!
   }
 
-  // MARK: - New hierarchical catalog
+  // MARK: - Model Structures
 
   struct ModelBuild {
     let id: String  // unique identifier
@@ -45,7 +41,7 @@ enum Catalog {
 
   struct ModelSize {
     let name: String  // e.g. "4B", "30B"
-    let parameterCount: Int64  // Total model parameters (from HF API)
+    let parameterCount: Int64  // Total model parameters
     let releaseDate: Date
     let ctxWindow: Int
     let serverArgs: [String]?  // optional defaults for all builds
@@ -105,7 +101,7 @@ enum Catalog {
     }
   }
 
-  /// Pre-sorted by name to eliminate runtime sorting overhead.
+  /// Pre-sorted by name to avoid runtime sorting.
   static let families: [ModelFamily] = familiesUnsorted.sorted(by: { $0.name < $1.name })
 
   // MARK: - Accessors
@@ -270,7 +266,7 @@ enum Catalog {
         ),
       ]
     ),
-    // MARK: Gemma 3 (QAT-trained)
+    // MARK: Gemma 3
     ModelFamily(
       name: "Gemma 3",
       series: "gemma",
